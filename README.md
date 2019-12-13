@@ -1,8 +1,6 @@
 # Arquivo
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/arquivo`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Processa documentos do condominio ph1341c118 para arquivo.
 
 ## Installation
 
@@ -22,7 +20,9 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+    $ arquivo dir PASTA       # processa faturas/recibos/extratos/minutas
+    $ arquivo pdf FILE        # processa extratos ou faturas
+    $ arquivo help [COMMAND]  # Describe available commands or one specific command
 
 ## Development
 
