@@ -1,16 +1,11 @@
 # frozen_string_literal: true
 
 require 'thor'
-# require 'arquivo/version'
-# require 'arquivo/extrato'
-# require 'arquivo/pdf'
-# require 'arquivo/dir'
-# require 'arquivo/jpg'
-require '/home/c118/ruby/arquivo/lib/arquivo/version.rb'
-require '/home/c118/ruby/arquivo/lib/arquivo/extrato.rb'
-require '/home/c118/ruby/arquivo/lib/arquivo/pdf.rb'
-require '/home/c118/ruby/arquivo/lib/arquivo/dir.rb'
-require '/home/c118/ruby/arquivo/lib/arquivo/jpg.rb'
+require 'arquivo/version'
+require 'arquivo/extrato'
+require 'arquivo/pdf'
+require 'arquivo/dir'
+require 'arquivo/jpg'
 
 module Arquivo
   class Error < StandardError; end
@@ -42,9 +37,9 @@ module Arquivo
 
     desc 'dir PASTA', 'processa faturas/recibos/extratos/minutas'
     option :fuzz, type: :numeric, default: 29,
-                  desc: 'fuzziness para corte das imagens no pdf'
+                  desc: 'fuzz trim N-1 jpg -> escolhe menor scanned pdf'
     option :quality, type: :numeric, default: 15,
-                     desc: 'qualidade das imagens no pdf'
+                     desc: 'compress N% jpg -> scanned pdf (less=low quality)'
     def dir(fdir)
       return unless File.ftype(fdir) == 'directory'
 
