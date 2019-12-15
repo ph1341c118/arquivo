@@ -36,9 +36,7 @@ module Arquivo
     def dir(fdir)
       return unless File.ftype(fdir) == 'directory'
 
-      system 'mkdir -p tmp/zip'
       C118dir.new(fdir).processa_pasta(options)
-      # system 'rm -rf tmp'
     end
   end
 end

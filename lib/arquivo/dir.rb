@@ -5,11 +5,12 @@ require 'googleauth'
 require 'googleauth/stores/file_token_store'
 
 module Arquivo
-  CO = '1>/dev/null 2>&1'
+  # CO = '1>/dev/null 2>&1'
+  CO = ''
 
   # analisar/processar pasta
   class C118dir < Enumerator
-    # @return [Enumerator] lista ordenada items dentro duma pasta
+    # @return [Enumerator] lista items dentro duma pasta
     attr_reader :items
     # @return [String] documento c118
     attr_reader :item
@@ -24,10 +25,50 @@ module Arquivo
       @items = Dir.glob(File.join(pasta, '*')).each
       @base = File.basename(pasta, File.extname(pasta)) +
               Date.today.strftime('%Y%m%d')
-      obter_dados(pasta)
+      obtem_dados(pasta)
+      system 'mkdir -p tmp/zip'
     end
 
-    def obter_dados(dir)
+    # @return [String] ficheiro dentro da pasta
+    def next_item
+      @item = items.next
+    rescue StopIteration
+      @item = nil
+    end
+
+    def processa_pasta(options)
+      n = 0
+      while next_item
+        if File.ftype(item) == 'directory'
+          C118dir.new(item).processa_pasta(options)
+        else
+          processa_file(options, File.extname(item).downcase)
+          n += 1
+        end
+      end
+      processa_fim(n) if n.positive?
+    end
+
+    def processa_fim(num)
+      system "rm -f #{base}.*;" \
+             "pdftk tmp/stamped*.pdf cat output #{base}.pdf;" \
+             "cd tmp/zip;tar cf ../../#{base}.tar *.pdf;" \
+             "cd ../..;gzip --best #{base}.tar;" \
+             'rm -rf ./tmp'
+      puts "#{base} (#{num})"
+    end
+
+    def processa_file(options, ext)
+      case ext
+      when '.mp3' then puts item
+      when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
+      when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
+      else
+        puts "erro: #{item} so posso processar mp3, jpg, pdf"
+      end
+    end
+
+    def obtem_dados(dir)
       return unless /fac?tura/i.match?(dir) ||
                     /recibo/i.match?(dir) ||
                     dados.empty?
@@ -69,42 +110,6 @@ module Arquivo
       aut.get_and_store_credentials_from_code(user_id: 'default',
                                               code: '<codigo-aqui>',
                                               base_url: oob)
-    end
-
-    # @return [String] texto duma pagina pdf
-    def next_item
-      @item = items.next
-    rescue StopIteration
-      @item = nil
-    end
-
-    def processa_pasta(options)
-      return unless next_item
-
-      if File.ftype(item) == 'directory'
-        C118dir.new(item).processa_pasta(options)
-      else
-        processa_file(options)
-        processa_pasta(options)
-        processa_fim
-      end
-    end
-
-    def processa_fim
-      system "rm -f #{base}.*;" \
-             "pdftk tmp/stamped*.pdf cat output #{base}.pdf;" \
-             "cd tmp/zip;tar cf ../../#{base}.tar *.pdf;" \
-             "gzip --best ../../#{base}.tar"
-    end
-
-    def processa_file(options)
-      case File.extname(item).downcase
-      when '.mp3' then puts 'mp3'
-      when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
-      when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
-      else
-        puts "erro: #{item} so posso processar mp3, jpg, pdf"
-      end
     end
   end
 end

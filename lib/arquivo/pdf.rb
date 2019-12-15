@@ -22,6 +22,7 @@ module Arquivo
       system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{s}\";" \
              "pdftk tmp/zip/#{base}.pdf " \
              "stamp tmp/stamp-#{key}.pdf output #{o} #{CO}"
+      puts key
     end
 
     def final(kda)
