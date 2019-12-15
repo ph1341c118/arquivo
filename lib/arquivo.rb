@@ -3,23 +3,16 @@
 require 'thor'
 require 'arquivo/version'
 require 'arquivo/extrato'
-require 'arquivo/pdf'
 require 'arquivo/dir'
+require 'arquivo/pdf'
 require 'arquivo/jpg'
 
 module Arquivo
   class Error < StandardError; end
 
-  # size limit for trim attempt
-  LT = 9000
-
-  # A4 page (8.27x11.69) inches
-  X4 = 8.27
-  Y4 = 11.69
-
   # CLI para analisar/processar documentos c118
   class CLI < Thor
-    desc 'pdf FILE', 'processa extratos ou faturas'
+    desc 'pdf PDF', 'processa PDF criando pasta de documentos para arquivo'
     def pdf(file)
       return unless File.ftype(file) == 'file'
 
@@ -37,9 +30,9 @@ module Arquivo
 
     desc 'dir PASTA', 'processa faturas/recibos/extratos/minutas'
     option :fuzz, type: :numeric, default: 29,
-                  desc: 'fuzz trim N-1 jpg -> escolhe menor scanned pdf'
+                  desc: 'fuzz trim jpg N-1, escolhe menor -> scanned pdf'
     option :quality, type: :numeric, default: 15,
-                     desc: 'compress N% jpg -> scanned pdf (less=low quality)'
+                     desc: 'compress jpg N% -> scanned pdf (less=low quality)'
     def dir(fdir)
       return unless File.ftype(fdir) == 'directory'
 

@@ -1,40 +1,40 @@
 # frozen_string_literal: true
 
 require 'i18n'
+
 I18n.config.available_locales = :pt
 
 module Arquivo
   # analisar/processar pdf
   class C118pdf < String
     def processa_pdf(options, dados)
-      @ppdf = pjpg.trim(options).jpg2pdf(options) if jpg?
-      @ppdf = self if size < ppdf.size
-      ppdf.final(dados[key])
+      # em caso de scanned pdf extract.trim.jpg -> trimed pdf
+      tpdf = jpg? ? extract.trim(options).converte(options) : self
+
+      # usar trimed pdf somente se for menor que original
+      (tpdf.size < size ? tpdf : self).final(dados[key]).marca
     end
 
     def marca
-      # produzir pdf com stamp
       o = "tmp/stamped-#{base[/-(\w+)/, 1]}-#{key}.pdf"
-      t = '2 2 moveto /Ubuntu findfont 7 scalefont ' \
+      s = '2 2 moveto /Ubuntu findfont 7 scalefont ' \
            "setfont (#{base}) show"
-      system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{t}\";\
-            pdftk tmp/zip/#{base}.pdf stamp tmp/stamp-#{key}.pdf output #{o}"
-
-      C118pdf.new(o)
+      system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{s}\";" \
+             "pdftk tmp/zip/#{base}.pdf " \
+             "stamp tmp/stamp-#{key}.pdf output #{o} #{CO}"
     end
 
     def final(kda)
       c118_stamp(kda)
       o = "tmp/zip/#{base}.pdf"
 
-      if key[0] == 'r'
-        # google producess better && smaller pdf then c118_gs
-        system "cp \"#{file}\" #{o}"
-      else
-        system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" 1>/dev/null 2>&1"
-      end
-      @ppdf = C118pdf.new(o) if File.size(o) <= size
-      ppdf.marca
+      recibo = key[0] == 'r'
+      # google print has better && smaller pdf then c118_gs
+      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{CO}" unless recibo
+      # usar copia do original se processado for maior
+      system "cp \"#{file}\" #{o}" if recibo || File.size(o) > size
+
+      C118pdf.new(o)
     end
 
     def base_stamp(kda)
@@ -94,22 +94,20 @@ module Arquivo
     def jpg?
       return false if key[0] == 'r'
 
-      o = "tmp/#{base}.txt"
+      o = "tmp/#{key}.txt"
       # teste scanned pdf (se contem texto -> not scanned)
       system "pdftotext -q -eol unix -nopgbrk \"#{file}\" #{o}"
-      return false if File.size?(o)
-
-      @pjpg = extract_jpg
+      File.size?(o) ? false : true
     end
 
-    def extract_jpg
-      o = "tmp/#{base}3.jpg"
+    def extract
+      o = "tmp/#{key}-extract.jpg"
 
-      system "pdfimages -q -j #{file} tmp/#{base}2"
+      system "pdfimages -q -j \"#{file}\" tmp/#{key}"
       # nem sempre as imagens sao jpg
       # somente utilizar a primeira
-      g = Dir.glob("tmp/#{base}2*.???")
-      system "convert #{g[0]} #{o} 1>/dev/null 2>&1"
+      g = Dir.glob("tmp/#{key}-???.???")
+      system "convert #{g[0]} #{o} #{CO}"
       return unless File.size(o) > LT
 
       C118jpg.new(o)

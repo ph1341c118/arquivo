@@ -11,39 +11,30 @@ module Arquivo
     attr_reader :ext
     # @return [String] base do documento
     attr_reader :base
-
-    # @return [String] texto duma pagina pdf
-    attr_reader :page
-    # @return [String] base extrato processado
-    attr_reader :nome
-    # @return [String] list paginas extrato processado
-    attr_reader :list
-
     # @return [String] key do documento ft????/rc????/ex??0??/sc??????
     attr_reader :key
-    # @return [Numeric] tamanho do pdf
+    # @return [Integer] tamanho do pdf
     attr_reader :size
 
-    # @return [C118jpg] scanned jpg em processamento
-    attr_reader :pjpg
-    # @return [C118pdf] pdf em processamento
-    attr_reader :ppdf
+    # @return [Array<Integer>] numeros pagina do extrato final
+    attr_reader :paginas
+    # @return [String] texto pagina pdf
+    attr_reader :pagina
+    # @return [String] nome extrato
+    attr_reader :nome
 
     # @return [C118pdf] pdf c118
     def initialize(fpdf)
       @file = fpdf
       @ext = File.extname(fpdf).downcase
-      @base = File.basename(fpdf, File.extname(fpdf)).downcase
-
+      @base = File.basename(fpdf, File.extname(fpdf))
       @key = @base[/\w+/]
       @size = File.size(fpdf)
-
-      @ppdf = self
     end
 
     def c118_gs
       # filtrar images para scq e extratos
-      fi = /^[se]/i.match?(key.to_s) ? ' -dFILTERIMAGE' : ''
+      fi = /^[se]/i.match?(key) ? ' -dFILTERIMAGE' : ''
 
       'gs -sDEVICE=pdfwrite ' \
         '-dNOPAUSE -dBATCH -dQUIET ' \
@@ -57,7 +48,7 @@ module Arquivo
     def processa_extrato?
       return true if !File.exist?(base) &&
                      File.exist?(file) && ext == '.pdf' &&
-                     first_page
+                     first_extrato
 
       if File.exist?(base)
         puts "erro: #{base} pasta ja existe"
@@ -69,8 +60,8 @@ module Arquivo
 
     def processa_extrato(cnt)
       cnt += 1
-      @list += ',' + cnt.to_s if c118_conta?
-      if next_page
+      @paginas << cnt if conta_c118?
+      if proxima_pagina
         faz_extrato if extrato?
         processa_extrato(cnt)
       else
@@ -79,47 +70,47 @@ module Arquivo
     end
 
     def extrato?
-      c118_conta? && page.match?(/extrato +combinado/i)
+      conta_c118? && pagina.match?(/extrato +combinado/i)
     end
 
     def faz_extrato
       system "#{c118_gs} " \
         "-sOutputFile=#{base}/#{nome}-extrato.pdf " \
-        "-sPageList=#{list[1..-1]} \"#{file}\" 1>/dev/null 2>&1"
+        "-sPageList=#{paginas.join(',')} \"#{file}\" #{CO}"
       puts "#{nome}-extrato"
-      base_extrato
+      proximo_extrato
     end
 
-    def c118_conta?
-      page.include?('45463760224')
+    def conta_c118?
+      pagina.include?('45463760224')
     end
 
-    # @return [PDF::Reader] leitor pdf
-    def rpdf
-      @rpdf ||= PDF::Reader.new(file).pages.lazy
+    # @return [Enumerator::Lazy] leitor pdf
+    def leitor
+      @leitor ||= PDF::Reader.new(file).pages.lazy
     rescue StandardError
-      @rpdf = nil
+      @leitor = nil
     end
 
     # @return [String] texto duma pagina pdf
-    def next_page
-      @page = rpdf.next.text
+    def proxima_pagina
+      @pagina = leitor.next.text
     rescue StopIteration
-      @page = nil
+      @pagina = nil
     end
 
-    def base_extrato
-      return false unless page
+    def proximo_extrato
+      return false unless pagina
 
-      @list = ''
-      n = page.scan(%r{N\. *(\d+)/(\d+)}).flatten
+      @paginas = []
+      n = pagina.scan(%r{N\. *(\d+)/(\d+)}).flatten
       @nome = "ex#{n[0].to_s[/\d{2}$/]}#{n[1]}"
     rescue StandardError
       @nome = nil
     end
 
-    def first_page
-      rpdf && next_page && base_extrato
+    def first_extrato
+      leitor && proxima_pagina && proximo_extrato
     end
 
     def split
