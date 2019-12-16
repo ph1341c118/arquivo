@@ -6,13 +6,28 @@ require 'arquivo/extrato'
 require 'arquivo/dir'
 require 'arquivo/pdf'
 require 'arquivo/jpg'
+require 'arquivo/mp3'
 
 module Arquivo
   class Error < StandardError; end
 
   # CLI para analisar/processar documentos c118
   class CLI < Thor
-    desc 'pdf PDF', 'processa PDF criando pasta de documentos para arquivo'
+    desc 'mp3 MINUTA', 'processa MINUTA criando pasta ' \
+                       'com segmentos para arquivo'
+    option :times, type: :array, default: [],
+                   desc: 'lista (hh:mm:ss) para dividir MINUTA em segmentos'
+    def mp3(file)
+      return unless File.ftype(file) == 'file'
+
+      f = C118mp3.new(file)
+      return unless f.processa_minuta?
+
+      system "mkdir -p tmp #{f.base}"
+      f.processa_minuta(options)
+    end
+
+    desc 'pdf PDF', 'processa PDF criando pasta com documentos para arquivo'
     def pdf(file)
       return unless File.ftype(file) == 'file'
 

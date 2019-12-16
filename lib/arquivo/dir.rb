@@ -29,13 +29,6 @@ module Arquivo
       system 'mkdir -p tmp/zip'
     end
 
-    # @return [String] ficheiro dentro da pasta
-    def next_item
-      @item = items.next
-    rescue StopIteration
-      @item = nil
-    end
-
     def processa_pasta(options)
       n = 0
       while next_item
@@ -60,12 +53,18 @@ module Arquivo
 
     def processa_file(options, ext)
       case ext
-      when '.mp3' then puts item
       when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
       when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
       else
         puts "erro: #{item} so posso processar mp3, jpg, pdf"
       end
+    end
+
+    # @return [String] ficheiro dentro da pasta
+    def next_item
+      @item = items.next
+    rescue StopIteration
+      @item = nil
     end
 
     def obtem_dados(dir)
