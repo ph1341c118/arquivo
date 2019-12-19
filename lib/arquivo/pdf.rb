@@ -21,7 +21,7 @@ module Arquivo
            "setfont (#{base}) show"
       system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{s}\";" \
              "pdftk tmp/zip/#{base}.pdf " \
-             "stamp tmp/stamp-#{key}.pdf output #{o} #{CO}"
+             "stamp tmp/stamp-#{key}.pdf output #{o} #{O2}"
       puts key
     end
 
@@ -31,7 +31,7 @@ module Arquivo
 
       recibo = key[0] == 'r'
       # google print has better && smaller pdf then c118_gs
-      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{CO}" unless recibo
+      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{O2}" unless recibo
       # usar copia do original se processado for maior
       system "cp \"#{file}\" #{o}" if recibo || File.size(o) > size
 
@@ -108,7 +108,7 @@ module Arquivo
       # nem sempre as imagens sao jpg
       # somente utilizar a primeira
       g = Dir.glob("tmp/#{key}-???.???")
-      system "convert #{g[0]} #{o} #{CO}"
+      system "convert #{g[0]} #{o} #{O2}"
       return unless File.size(o) > LT
 
       C118jpg.new(o)

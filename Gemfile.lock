@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    arquivo (0.1.8)
+    arquivo (0.1.9)
       fastimage (~> 2.1)
       google-api-client (~> 0.34)
       pdf-reader (~> 2.3)

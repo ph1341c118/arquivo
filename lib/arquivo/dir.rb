@@ -5,8 +5,10 @@ require 'googleauth'
 require 'googleauth/stores/file_token_store'
 
 module Arquivo
-  # CO = '1>/dev/null 2>&1'
-  CO = ''
+  # O1 = '2>/dev/null'
+  # O2 = '1>/dev/null 2>&1'
+  O1 = ''
+  O2 = ''
 
   # analisar/processar pasta
   class C118dir < Enumerator
@@ -14,8 +16,13 @@ module Arquivo
     attr_reader :items
     # @return [String] documento c118
     attr_reader :item
+
     # @return [Hash] dados (faturas/recibos) de c118-contas
     attr_reader :dados
+    # @return [Float] maximo segundos de silencio encontrados
+    attr_reader :silence
+    # @return [String] noiseprof do silencio encontrado
+    attr_reader :nprof
 
     # @return [String] base nome ficheiros finais (pdf, tar.gz)
     attr_reader :base
@@ -25,8 +32,6 @@ module Arquivo
       @items = Dir.glob(File.join(pasta, '*')).each
       @base = File.basename(pasta, File.extname(pasta)) +
               Date.today.strftime('%Y%m%d')
-      obtem_dados(pasta)
-      system 'mkdir -p tmp/zip'
     end
 
     def processa_pasta(options)
@@ -55,6 +60,8 @@ module Arquivo
       case ext
       when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
       when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
+      when '.mp3', '.m4a', '.wav'
+        C118mp3.new(item).processa_mp3(options, num)
       else
         puts "erro: #{item} so posso processar mp3, jpg, pdf"
       end
@@ -67,10 +74,28 @@ module Arquivo
       @item = nil
     end
 
+    def prepara(pasta, options)
+      obtem_dados(pasta)
+      obtem_noiseprof(pasta, options)
+      system 'mkdir -p tmp/zip'
+    end
+
+    def obtem_noiseprof(dir, options)
+      return unless /minuta/i.match?(dir) || silence&.zero?
+
+      if options[:nred]
+        @silence = 0.0
+        silencio(1, duracao(item), options[:som]) while next_item
+        @nprof = noiseprof
+      end
+    rescue StandardError
+      @silence = 0.0
+    end
+
     def obtem_dados(dir)
       return unless /fac?tura/i.match?(dir) ||
                     /recibo/i.match?(dir) ||
-                    dados.empty?
+                    dados&.empty?
 
       # obtem dados (faturas/recibos) da sheet c118-contas
       id = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'

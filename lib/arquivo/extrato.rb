@@ -76,7 +76,7 @@ module Arquivo
     def faz_extrato
       system "#{c118_gs} " \
         "-sOutputFile=#{base}/#{nome}-extrato.pdf " \
-        "-sPageList=#{paginas.join(',')} \"#{file}\" #{CO}"
+        "-sPageList=#{paginas.join(',')} \"#{file}\" #{O2}"
       puts "#{nome}-extrato"
       proximo_extrato
     end

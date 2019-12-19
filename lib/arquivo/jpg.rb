@@ -43,7 +43,7 @@ module Arquivo
 
     def parm_trim(options, fuzz)
       "-fuzz #{fuzz}% -trim +repage #{parm_qualidade(options)} " \
-        "tmp/#{key}-#{fuzz}.jpg #{CO}"
+        "tmp/#{key}-#{fuzz}.jpg #{O2}"
     end
 
     def parm_qualidade(options)
@@ -66,7 +66,7 @@ module Arquivo
     def converte(options)
       # expande jpg on a larger canvas
       system "convert \"#{file}\" #{expande} #{parm_qualidade(options)} " \
-             "-format pdf tmp/#{key}-trimed.pdf #{CO}"
+             "-format pdf tmp/#{key}-trimed.pdf #{O2}"
 
       # devolve pdf processado a partir de jpg
       C118pdf.new("tmp/#{key}-trimed.pdf")

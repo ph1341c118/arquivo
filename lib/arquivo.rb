@@ -4,6 +4,7 @@ require 'thor'
 require 'arquivo/version'
 require 'arquivo/extrato'
 require 'arquivo/dir'
+require 'arquivo/noise'
 require 'arquivo/pdf'
 require 'arquivo/jpg'
 require 'arquivo/mp3'
@@ -15,10 +16,10 @@ module Arquivo
   class CLI < Thor
     desc 'mp3 MINUTA', 'processa MINUTA criando pasta ' \
                        'com segmentos para arquivo'
-    option :times, type: :array, default: [],
-                   desc: 'lista (hh:mm:ss) para dividir MINUTA em segmentos'
+    option :tempos, type: :array, default: [],
+                    desc: 'lista tempos para segmentar MINUTA, ex: [[h:]m:]s'
     def mp3(file)
-      return unless File.ftype(file) == 'file'
+      return unless File.exist?(file) && File.ftype(file) == 'file'
 
       f = C118mp3.new(file)
       return unless f.processa_minuta?
@@ -48,10 +49,16 @@ module Arquivo
                   desc: 'fuzz trim jpg N-1, escolhe menor -> scanned pdf'
     option :quality, type: :numeric, default: 15,
                      desc: 'compress jpg N% -> scanned pdf (less=low quality)'
+    option :nred, type: :boolean, default: true,
+                  desc: 'fazer reducao do ruido de fundo'
+    option :som, type: :numeric, default: 1.0,
+                 desc: 'minimo som que determina fim do silencio (segundos)'
+    option :amount, type: :numeric, default: 0.00001,
+                    desc: 'qtd ruido a ser removido'
     def dir(fdir)
       return unless File.ftype(fdir) == 'directory'
 
-      C118dir.new(fdir).processa_pasta(options)
+      C118dir.new(fdir).prepara(fdir, options).processa_pasta(options)
     end
   end
 end
