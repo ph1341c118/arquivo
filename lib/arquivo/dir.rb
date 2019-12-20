@@ -4,11 +4,11 @@ require 'google/apis/sheets_v4'
 require 'googleauth'
 require 'googleauth/stores/file_token_store'
 
+require 'arquivo/noise'
+
 module Arquivo
-  # O1 = '2>/dev/null'
-  # O2 = '1>/dev/null 2>&1'
-  O1 = ''
-  O2 = ''
+  O1 = '2>/dev/null'
+  O2 = '1>/dev/null 2>&1'
 
   # analisar/processar pasta
   class C118dir < Enumerator
@@ -22,7 +22,7 @@ module Arquivo
     # @return [Float] maximo segundos de silencio encontrados
     attr_reader :silence
     # @return [String] noiseprof do silencio encontrado
-    attr_reader :nprof
+    attr_reader :noiseprof
 
     # @return [String] base nome ficheiros finais (pdf, tar.gz)
     attr_reader :base
@@ -30,29 +30,35 @@ module Arquivo
     # @return [C118dir] documentos c118
     def initialize(pasta)
       @items = Dir.glob(File.join(pasta, '*')).each
-      @base = File.basename(pasta, File.extname(pasta)) +
+      @base = File.basename(pasta, File.extname(pasta)) + '-' +
               Date.today.strftime('%Y%m%d')
     end
 
-    def processa_pasta(options)
+    def processa_items(options)
       n = 0
       while next_item
         if File.ftype(item) == 'directory'
-          C118dir.new(item).processa_pasta(options)
+          C118dir.new(item).processa_pasta(item, options)
         else
           processa_file(options, File.extname(item).downcase)
           n += 1
         end
       end
-      processa_fim(n) if n.positive?
+      processa_fim(n)
     end
 
     def processa_fim(num)
-      system "rm -f #{base}.*;" \
-             "pdftk tmp/stamped*.pdf cat output #{base}.pdf;" \
-             "cd tmp/zip;tar cf ../../#{base}.tar *.pdf;" \
-             "cd ../..;gzip --best #{base}.tar;" \
-             'rm -rf ./tmp'
+      return unless num.positive?
+
+      cmd = if /minuta/i.match?(base)
+              "rm -f #{base}.*"
+            else
+              "rm -f #{base}.*;pdftk tmp/stamped*.pdf cat output #{base}.pdf"
+            end
+      # ;rm -rf tmp
+      system cmd + ";cd tmp/zip;tar cf ../../#{base}.tar *" \
+                   ";cd ../..;gzip --best #{base}.tar;rm -rf tmp"
+
       puts "#{base} (#{num})"
     end
 
@@ -61,7 +67,7 @@ module Arquivo
       when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
       when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
       when '.mp3', '.m4a', '.wav'
-        C118mp3.new(item).processa_mp3(options, num)
+        C118mp3.new(item).processa_mp3(options, noiseprof)
       else
         puts "erro: #{item} so posso processar mp3, jpg, pdf"
       end
@@ -74,28 +80,20 @@ module Arquivo
       @item = nil
     end
 
-    def prepara(pasta, options)
-      obtem_dados(pasta)
-      obtem_noiseprof(pasta, options)
-      system 'mkdir -p tmp/zip'
-    end
+    def processa_pasta(pasta, options)
+      unless File.ftype(items.peek) == 'directory'
+        @dados = {}
+        obtem_dados(pasta)
 
-    def obtem_noiseprof(dir, options)
-      return unless /minuta/i.match?(dir) || silence&.zero?
-
-      if options[:nred]
         @silence = 0.0
-        silencio(1, duracao(item), options[:som]) while next_item
-        @nprof = noiseprof
+        system 'mkdir -p tmp/zip'
+        obtem_noiseprof(pasta, options)
       end
-    rescue StandardError
-      @silence = 0.0
+      processa_items(options)
     end
 
     def obtem_dados(dir)
-      return unless /fac?tura/i.match?(dir) ||
-                    /recibo/i.match?(dir) ||
-                    dados&.empty?
+      return unless /fac?tura/i.match?(dir) || /recibo/i.match?(dir)
 
       # obtem dados (faturas/recibos) da sheet c118-contas
       id = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'

@@ -9,53 +9,47 @@ module Arquivo
     attr_reader :ext
     # @return [String] base do ficheiro
     attr_reader :base
-    # @return [String] final do nome do segmento
-    attr_reader :final
     # @return [Float] segundos do mp3
     attr_reader :size
+
+    # @return [String] nome segmento
+    attr_reader :nome
 
     # @return [C118mp3] mp3 c118
     def initialize(fmp3)
       @file = fmp3
       @ext = File.extname(fmp3).downcase
       @base = File.basename(fmp3, File.extname(fmp3))
-      @final = "-#{@base[/\d{8}/]}#{@base[/-\w+/]}#{@ext}"
       @size = `soxi -V0 -D #{fmp3} #{O1}`.to_f
     end
 
-    def forca_mp3
-      o = "tmp/#{base}.mp3"
-      system "sox \"#{file}\" #{o} #{O2}" unless ext == '.mp3'
-      File.size?(o) ? C118mp3.new(o) : self
-    end
-
-    def processa_mp3
-      system processa_segmentos(Dir.glob("tmp/#{base}*#{ext}"),
-                                0, '', options[:amount])
-    end
-
-    def processa_segmentos(ase, pse, cmd, amt)
-      return cmd[1..-1] unless pse < ase.size
-
-      fls = "#{base}/s#{pse}#{final} " \
-        "tmp/s#{pse}-#{final}#{base[/-\w+/]}.mp3"
-      cmd += nprof ? ";sox #{fls} noisered #{nprof} #{ff(amt)}" : ";cp #{fls}"
-
-      processa_segmentos(ase, pse + 1, cmd, amt)
-    end
-
-    def ff(val)
-      format('%<valor>.5f', valor: val)
+    def processa_mp3(options, npr)
+      cmd = if npr
+              "noisered #{npr} #{format('%<v>.5f', v: options[:amount])} "
+            else
+              ''
+            end
+      cmd += "rate -v #{options[:rate]}k"
+      system "sox -G #{file} tmp/zip/#{base}.mp3 #{cmd} #{O2}"
+      # puts base
     end
 
     def segmenta(tps, pse, cmd)
       return cmd[1..-1] unless pse < tps.size
 
-      cmd += ";sox #{file} #{base}/s#{pse}#{final} trim #{tps[pse]}"
+      puts proximo_segmento(pse)
+
+      cmd += ";sox #{file} #{nome} trim #{tps[pse]}"
       pse += 1
       cmd += " =#{tps[pse]}" if pse < tps.size
 
       segmenta(tps, pse, cmd + " #{O2}")
+    end
+
+    def proximo_segmento(pse)
+      out = "s#{format('%<v>02d', v: pse)}-#{base[/\d{8}/]}#{base[/-\w+/]}"
+      @nome = "#{base}/#{out}#{ext}"
+      out
     end
 
     def processa_minuta(options)
@@ -64,6 +58,7 @@ module Arquivo
 
     def processa_minuta?
       return true if ['.mp3', '.m4a', '.wav'].include?(ext) &&
+                     size.positive? &&
                      !File.exist?(base)
 
       if File.exist?(base)

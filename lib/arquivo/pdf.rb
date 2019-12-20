@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'arquivo/extrato'
 require 'i18n'
 
 I18n.config.available_locales = :pt
@@ -7,6 +8,33 @@ I18n.config.available_locales = :pt
 module Arquivo
   # analisar/processar pdf
   class C118pdf < String
+    # @return [String] nome do documento
+    attr_reader :file
+    # @return [String] extensao do documento
+    attr_reader :ext
+    # @return [String] base do documento
+    attr_reader :base
+    # @return [String] key do documento ft????/rc????/ex??0??/sc??????
+    attr_reader :key
+    # @return [Integer] tamanho do pdf
+    attr_reader :size
+
+    # @return [Array<Integer>] numeros pagina do extrato final
+    attr_reader :paginas
+    # @return [String] texto pagina pdf
+    attr_reader :pagina
+    # @return [String] nome extrato
+    attr_reader :nome
+
+    # @return [C118pdf] pdf c118
+    def initialize(fpdf)
+      @file = fpdf
+      @ext = File.extname(fpdf).downcase
+      @base = File.basename(fpdf, File.extname(fpdf))
+      @key = @base[/\w+/]
+      @size = File.size(fpdf)
+    end
+
     def processa_pdf(options, dados)
       # em caso de scanned pdf extract.trim.jpg -> trimed pdf
       tpdf = jpg? ? extract.trim(options).converte(options) : self
@@ -22,18 +50,16 @@ module Arquivo
       system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{s}\";" \
              "pdftk tmp/zip/#{base}.pdf " \
              "stamp tmp/stamp-#{key}.pdf output #{o} #{O2}"
-      puts key
+      # puts key
     end
 
     def final(kda)
       c118_stamp(kda)
       o = "tmp/zip/#{base}.pdf"
 
-      recibo = key[0] == 'r'
-      # google print has better && smaller pdf then c118_gs
-      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{O2}" unless recibo
+      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{O2}"
       # usar copia do original se processado for maior
-      system "cp \"#{file}\" #{o}" if recibo || File.size(o) > size
+      system "cp \"#{file}\" #{o}" if File.size(o) > size
 
       C118pdf.new(o)
     end

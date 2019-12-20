@@ -5,33 +5,6 @@ require 'pdf-reader'
 module Arquivo
   # analisar/processar pdf
   class C118pdf < String
-    # @return [String] nome do documento
-    attr_reader :file
-    # @return [String] extensao do documento
-    attr_reader :ext
-    # @return [String] base do documento
-    attr_reader :base
-    # @return [String] key do documento ft????/rc????/ex??0??/sc??????
-    attr_reader :key
-    # @return [Integer] tamanho do pdf
-    attr_reader :size
-
-    # @return [Array<Integer>] numeros pagina do extrato final
-    attr_reader :paginas
-    # @return [String] texto pagina pdf
-    attr_reader :pagina
-    # @return [String] nome extrato
-    attr_reader :nome
-
-    # @return [C118pdf] pdf c118
-    def initialize(fpdf)
-      @file = fpdf
-      @ext = File.extname(fpdf).downcase
-      @base = File.basename(fpdf, File.extname(fpdf))
-      @key = @base[/\w+/]
-      @size = File.size(fpdf)
-    end
-
     def c118_gs
       # filtrar images para scq e extratos
       fi = /^[se]/i.match?(key) ? ' -dFILTERIMAGE' : ''
