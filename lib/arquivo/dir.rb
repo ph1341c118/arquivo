@@ -9,10 +9,11 @@ require 'arquivo/noise'
 module Arquivo
   O1 = '2>/dev/null'
   O2 = '1>/dev/null 2>&1'
+  FT = ['.mp3', '.m4a', '.wav', '.sox'].freeze
 
   # analisar/processar pasta
   class C118dir < Enumerator
-    # @return [Enumerator] lista items dentro duma pasta
+    # @return [Enumerator] items dentro duma pasta
     attr_reader :items
     # @return [String] documento c118
     attr_reader :item
@@ -66,10 +67,10 @@ module Arquivo
       case ext
       when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
       when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
-      when '.mp3', '.m4a', '.wav'
+      when *FT
         C118mp3.new(item).processa_mp3(options, noiseprof)
       else
-        puts "erro: #{item} so posso processar mp3, jpg, pdf"
+        puts "erro: #{item} so posso processar"
       end
     end
 

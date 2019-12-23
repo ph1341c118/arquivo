@@ -25,13 +25,12 @@ module Arquivo
 
     def processa_mp3(options, npr)
       cmd = if npr
-              "noisered #{npr} #{format('%<v>.5f', v: options[:amount])} "
+              "noisered #{npr} #{format('%<v>.9f', v: options[:amount])} "
             else
               ''
             end
-      cmd += "rate -v #{options[:rate]}k"
+      cmd += "rate -v #{options[:rate]}k channels 1"
       system "sox -G #{file} tmp/zip/#{base}.mp3 #{cmd} #{O2}"
-      # puts base
     end
 
     def segmenta(tps, pse, cmd)
@@ -57,14 +56,14 @@ module Arquivo
     end
 
     def processa_minuta?
-      return true if ['.mp3', '.m4a', '.wav'].include?(ext) &&
-                     size.positive? &&
+      return true if FT.include?(ext) && size.positive? &&
                      !File.exist?(base)
 
       if File.exist?(base)
         puts "erro: #{base} pasta ja existe"
       else
-        puts "erro: #{file} nao consigo processar minuta"
+        puts 'erro: so consigo processar minutas com som ' \
+             "e tipo #{FT}"
       end
 
       false

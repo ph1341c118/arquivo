@@ -19,14 +19,15 @@ module Arquivo
     end
 
     def processa_extrato?
-      return true if !File.exist?(base) &&
-                     File.exist?(file) && ext == '.pdf' &&
-                     first_extrato
+      return true if ext == '.pdf' &&
+                     size.positive? &&
+                     !File.exist?(base) &&
+                     first_extrato?
 
       if File.exist?(base)
         puts "erro: #{base} pasta ja existe"
       else
-        puts "erro: #{file} nao consigo obter primeira pagina do PDF"
+        puts "erro: #{file} nao consigo obter primeira pagina do EXTRATO"
       end
       false
     end
@@ -58,6 +59,10 @@ module Arquivo
       pagina.include?('45463760224')
     end
 
+    def first_extrato?
+      leitor && proxima_pagina && proximo_extrato
+    end
+
     # @return [Enumerator::Lazy] leitor pdf
     def leitor
       @leitor ||= PDF::Reader.new(file).pages.lazy
@@ -80,10 +85,6 @@ module Arquivo
       @nome = "ex#{n[0].to_s[/\d{2}$/]}#{n[1]}"
     rescue StandardError
       @nome = nil
-    end
-
-    def first_extrato
-      leitor && proxima_pagina && proximo_extrato
     end
 
     def split

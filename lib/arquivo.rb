@@ -54,7 +54,7 @@ module Arquivo
                    desc: 'ruido de fundo - sim ou nao'
     option :sound, type: :numeric, default: 1.0,
                    desc: 'minimo som que determina fim do silencio (segundos)'
-    option :amount, type: :numeric, default: 0.0001,
+    option :amount, type: :numeric, default: 0.00001,
                     desc: 'qtd ruido a ser removido'
     option :rate, type: :numeric, default: 16,
                   desc: 'sample rate - radio-16k, CD-44.1k, PC-48k, pro-96k'
