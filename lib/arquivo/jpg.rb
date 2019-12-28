@@ -15,64 +15,83 @@ module Arquivo
   # Factor 1.04 creates 2*2% borders,
   FB = 1.04
 
-  # analisar/processar jpg
+  # permite processar documentos em imagens JPG
   class C118jpg < String
-    # @return [String] nome do ficheiro
+    # @return [String] nome do documento
     attr_reader :file
-    # @return [String] extensao do ficheiro
+    # @return [String] extensao do documento
     attr_reader :ext
-    # @return [String] base do ficheiro
+    # @return [String] base do documento
     attr_reader :base
-    # @return [String] key do documento ft????/rc????/ex??0??/sc??????
-    attr_reader :key
-    # @return [Integer] tamanho do jpg
+    # @return [Integer] tamanho do documento
     attr_reader :size
+    # @return [Hash] opcoes parametrizar JPG
+    attr_reader :opcoes
+    # @return [String] id do documento ft/rc/ex/sc <numero>
+    attr_reader :id
 
-    # @return [C118jpg] jpg c118
-    def initialize(fjpg)
-      @file = fjpg
-      @ext = File.extname(fjpg).downcase
-      @base = File.basename(fjpg, File.extname(fjpg))
-      @key = @base[/\w+/]
-      @size = File.size(fjpg)
+    # @param [String] jpg JPG c118
+    # @param [Hash] opt parametrizar JPG
+    # @option opt [Numeric] :fuzz (29) trim jpg N-1, escolhe menor ->
+    #   scanned pdf
+    # @option opt [Numeric] :quality (15) compress jpg N% -> scanned pdf
+    #   (less=low quality)
+    # @return [C118jpg] JPG c118
+    def initialize(jpg, opt)
+      @file = jpg
+      @ext = File.extname(jpg).downcase
+      @base = File.basename(jpg, File.extname(jpg))
+      @id = @base[/\w+/]
+      @size = File.size(jpg)
+      @opcoes = opt
     end
 
-    def processa_jpg(options, dados)
-      trim(options).converte(options).final(dados[key]).marca
+    # @!group processamento
+    # apara jpg e converte em pdf para arquivo
+    #
+    # @param dad (see C118pdf#processa_pdf)
+    def processa_jpg(dad)
+      apara.pdf.final(dad[id]).marca
     end
 
-    def parm_trim(options, fuzz)
-      "-fuzz #{fuzz}% -trim +repage #{parm_qualidade(options)} " \
-        "tmp/#{key}-#{fuzz}.jpg #{O2}"
-    end
-
-    def parm_qualidade(options)
-      "-quality #{options[:quality]}% -compress jpeg"
-    end
-
-    def trim(options)
-      f = options[:fuzz]
+    # @return [C118jpg] jpg com melhor aparado
+    def apara
+      f = opcoes[:fuzz]
       h = {}
-      # obter jpg menor triming borders ao maximo
+      # aparar borders ao maximo
       while f >= 1
-        system "convert \"#{file}\" #{parm_trim(options, f)}"
-        h[f] = File.size("tmp/#{key}-#{f}.jpg")
+        o = "tmp/#{id}-#{f}.jpg"
+        h[o] = size_aparado(f, o)
         f -= 4
       end
       m = h.min_by { |_, v| v }
-      m[1].between?(LT, size) ? C118jpg.new("tmp/#{key}-#{m[0]}.jpg") : self
+      m[1].between?(LT, size) ? C118jpg.new(m[0], opcoes) : self
     end
 
-    def converte(options)
-      # expande jpg on a larger canvas
-      system "convert \"#{file}\" #{expande} #{parm_qualidade(options)} " \
-             "-format pdf tmp/#{key}-trimed.pdf #{O2}"
+    # @return [C118pdf] pdf com jpg processada dentro
+    def pdf
+      system "convert \"#{file}\" #{oa4} #{oqualidade} " \
+             "-format pdf tmp/#{id}-trimed.pdf #{O2}"
 
-      # devolve pdf processado a partir de jpg
-      C118pdf.new("tmp/#{key}-trimed.pdf")
+      C118pdf.new("tmp/#{id}-trimed.pdf", opcoes)
     end
 
-    def expande
+    # @param [Numeric] fuzz fuzziness actual em processamento
+    # @param [String] out jpg aparada
+    # @return [Numeric] tamanho da jpg aparada
+    def size_aparado(fuzz, out)
+      system "convert \"#{file}\" -fuzz #{fuzz}% -trim +repage " \
+             "#{oqualidade} #{out} #{O2}"
+      File.size(out)
+    end
+
+    # @return [String] opcoes comprimir jpg
+    def oqualidade
+      "-quality #{opcoes[:quality]}% -compress jpeg"
+    end
+
+    # @return [String] opcoes centrar jpg em canvas A4
+    def oa4
       # image dimensions in pixels.
       x, y = FastImage.size(file)
 

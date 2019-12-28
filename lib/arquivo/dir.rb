@@ -7,47 +7,32 @@ require 'googleauth/stores/file_token_store'
 require 'arquivo/noise'
 
 module Arquivo
-  O1 = '2>/dev/null'
-  O2 = '1>/dev/null 2>&1'
-  FT = ['.mp3', '.m4a', '.wav', '.sox'].freeze
+  # O1 = '2>/dev/null'
+  # O2 = '1>/dev/null 2>&1'
+  O1 = ''
+  O2 = ''
+  AT = ['.mp3', '.m4a', '.wav', '.sox'].freeze
 
-  # analisar/processar pasta
+  # permite processar e arquivar pasta com documentos c118
   class C118dir < Enumerator
-    # @return [Enumerator] items dentro duma pasta
-    attr_reader :items
-    # @return [String] documento c118
-    attr_reader :item
-
-    # @return [Hash] dados (faturas/recibos) de c118-contas
-    attr_reader :dados
-    # @return [Float] maximo segundos de silencio encontrados
-    attr_reader :silence
-    # @return [String] noiseprof do silencio encontrado
-    attr_reader :noiseprof
-
-    # @return [String] base nome ficheiros finais (pdf, tar.gz)
-    attr_reader :base
-
-    # @return [C118dir] documentos c118
-    def initialize(pasta)
-      @items = Dir.glob(File.join(pasta, '*')).each
-      @base = File.basename(pasta, File.extname(pasta)) + '-' +
-              Date.today.strftime('%Y%m%d')
-    end
-
-    def processa_items(options)
+    # @!group processamento
+    # processa items duma pasta - sub-pastas recursivamente
+    def processa_items
       n = 0
       while next_item
         if File.ftype(item) == 'directory'
-          C118dir.new(item).processa_pasta(item, options)
+          C118dir.new(item, opcoes).processa_pasta(item)
         else
-          processa_file(options, File.extname(item).downcase)
+          processa_file(File.extname(item).downcase)
           n += 1
         end
       end
       processa_fim(n)
     end
 
+    # cria ficheiros finais para arquivo
+    #
+    # @param [Numeric] num numero de documentos dentro do arquivo
     def processa_fim(num)
       return unless num.positive?
 
@@ -56,56 +41,65 @@ module Arquivo
             else
               "rm -f #{base}.*;pdftk tmp/stamped*.pdf cat output #{base}.pdf"
             end
-      # ;rm -rf tmp
       system cmd + ";cd tmp/zip;tar cf ../../#{base}.tar *" \
-                   ";cd ../..;gzip --best #{base}.tar;rm -rf tmp"
+                   ";cd ../..;gzip --best #{base}.tar" \
+                   '' # ';rm -rf tmp'
 
       puts "#{base} (#{num})"
     end
 
-    def processa_file(options, ext)
+    # processa ficheiro JPG, PDF ou AUDIO
+    #
+    # @param [String] ext tipo ficheiro
+    def processa_file(ext)
+      opt = opcoes
       case ext
-      when '.jpg' then C118jpg.new(item).processa_jpg(options, dados)
-      when '.pdf' then C118pdf.new(item).processa_pdf(options, dados)
-      when *FT
-        C118mp3.new(item).processa_mp3(options, noiseprof)
+      when '.jpg' then C118jpg.new(item, opt).processa_jpg(dados)
+      when '.pdf' then C118pdf.new(item, opt).processa_pdf(dados)
+      when *AT    then C118mp3.new(item, opt).processa_mp3(noiseprof)
       else
-        puts "erro: #{item} so posso processar"
+        puts "erro: #{ext} nao posso processar este tipo de dicheiro"
       end
     end
 
-    # @return [String] ficheiro dentro da pasta
+    # processa conteudo duma pasta
+    #
+    # @param pasta (see CLI#dir)
+    def processa_pasta(pasta)
+      unless File.ftype(items.peek) == 'directory'
+        system 'mkdir -p tmp/zip'
+        obtem_dados(pasta)
+        obtem_noiseprof(pasta)
+      end
+      processa_items
+    end
+
+    # @return [String] proximo item dentro da pasta
     def next_item
       @item = items.next
     rescue StopIteration
       @item = nil
     end
 
-    def processa_pasta(pasta, options)
-      unless File.ftype(items.peek) == 'directory'
-        @dados = {}
-        obtem_dados(pasta)
+    # @!group dados online
+    # @param pasta (see CLI#dir)
+    # @return [Hash] dados oficiais para reclassificacao de faturas e recibos
+    def obtem_dados(pasta)
+      @dados = {}
+      # somente faturas e recibos necessitam reclassificacao
+      return unless /fac?tura/i.match?(pasta) || /recibo/i.match?(pasta)
 
-        @silence = 0.0
-        system 'mkdir -p tmp/zip'
-        obtem_noiseprof(pasta, options)
-      end
-      processa_items(options)
-    end
-
-    def obtem_dados(dir)
-      return unless /fac?tura/i.match?(dir) || /recibo/i.match?(dir)
-
-      # obtem dados (faturas/recibos) da sheet c118-contas
-      id = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
-      sh = (/fac?tura/i.match?(dir) ? 'rft' : 'rrc') + '!A2:E'
-      @dados = c118_sheets.get_spreadsheet_values(id, sh).values
+      # sheet c118-contas
+      dg = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
+      # range dos dados (faturas/recibos)
+      sh = (/fac?tura/i.match?(pasta) ? 'rft' : 'rrc') + '!A2:E'
+      @dados = c118_sheets.get_spreadsheet_values(dg, sh).values
                           .group_by { |k| k[0][/\w+/] }
     rescue StandardError
       @dados = {}
     end
 
-    # assegura credenciais validas, obtidas dum arquivo de credencias
+    # assegura credenciais validas, obtidas dum ficheiro de credencias
     #
     # @return [Google::Apis::SheetsV4::SheetsService] c118 sheets_v4
     def c118_sheets

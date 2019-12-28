@@ -6,107 +6,103 @@ require 'i18n'
 I18n.config.available_locales = :pt
 
 module Arquivo
-  # analisar/processar pdf
+  # permite processar documentos PDF
   class C118pdf < String
-    # @return [String] nome do documento
-    attr_reader :file
-    # @return [String] extensao do documento
-    attr_reader :ext
-    # @return [String] base do documento
-    attr_reader :base
-    # @return [String] key do documento ft????/rc????/ex??0??/sc??????
-    attr_reader :key
-    # @return [Integer] tamanho do pdf
-    attr_reader :size
-
-    # @return [Array<Integer>] numeros pagina do extrato final
-    attr_reader :paginas
-    # @return [String] texto pagina pdf
-    attr_reader :pagina
-    # @return [String] nome extrato
-    attr_reader :nome
-
-    # @return [C118pdf] pdf c118
-    def initialize(fpdf)
-      @file = fpdf
-      @ext = File.extname(fpdf).downcase
-      @base = File.basename(fpdf, File.extname(fpdf))
-      @key = @base[/\w+/]
-      @size = File.size(fpdf)
-    end
-
-    def processa_pdf(options, dados)
-      # em caso de scanned pdf extract.trim.jpg -> trimed pdf
-      tpdf = jpg? ? extract.trim(options).converte(options) : self
+    # @!group processamento
+    # processa pdf para arquivo
+    #
+    # @param [Hash] dad dados oficiais para reclassificacao de faturas e recibos
+    # @example dad
+    #   {"ft1901"=>[["ft1901","legal","assembleia","expediente","-1395"]],
+    #    "ft1944"=>[["ft1944","banco","juro","dc3029998410","100"],
+    #               ["ft1944","banco","irc","dc3029998410","-28"]]}
+    def processa_pdf(dad)
+      o = "tmp/#{id}-extract.jpg"
+      pdf = jpg?(o) ? C118jpg.new(o, opcoes).apara.pdf : self
 
       # usar trimed pdf somente se for menor que original
-      (tpdf.size < size ? tpdf : self).final(dados[key]).marca
+      (pdf.size < size ? pdf : self).final(dad[id]).marca
     end
 
-    def marca
-      o = "tmp/stamped-#{base[/-(\w+)/, 1]}-#{key}.pdf"
-      s = '2 2 moveto /Ubuntu findfont 7 scalefont ' \
-           "setfont (#{base}) show"
-      system "#{c118_gs} -sOutputFile=tmp/stamp-#{key}.pdf -c \"#{s}\";" \
-             "pdftk tmp/zip/#{base}.pdf " \
-             "stamp tmp/stamp-#{key}.pdf output #{o} #{O2}"
-      # puts key
-    end
-
+    # @param [Array] kda lista dados para reclassificacao do documento
+    # @return [C118pdf] pdf totalmente processado
+    # @example kda-ft1901
+    #   [["ft1901","legal","assembleia","expediente","-1395"]]
     def final(kda)
-      c118_stamp(kda)
+      stamp(kda)
       o = "tmp/zip/#{base}.pdf"
 
-      system "#{c118_gs} -sOutputFile=#{o} \"#{file}\" #{O2}"
-      # usar copia do original se processado for maior
+      system "#{ghostscript} -sOutputFile=#{o} \"#{file}\" #{O2}"
+      # copia original se processado for maior
       system "cp \"#{file}\" #{o}" if File.size(o) > size
 
-      C118pdf.new(o)
+      C118pdf.new(o, opcoes)
     end
 
-    def base_stamp(kda)
-      @base = key + '-' + rubrica(kda) + digest
-    end
-
-    def vnum_stamp(kda)
-      n = kda.inject(0) { |s, e| s + e[4].to_i }.abs
-      @base += '-' + format('%<valor>06d', valor: n)
-    end
-
-    def numb_stamp(kda)
-      d = kda.group_by { |e| e[0][/-(mb\d{8})/, 1] }
-             .keys.join('-')
-      @base += '-' + d unless d.size.zero?
-    end
-
-    def sfim_stamp(kda)
-      if key[0] == 'f'
-        kda.group_by { |e| e[2] }
-      else
-        kda.group_by { |e| e[2][/\d{4}-(\w{3})/, 1] }
-      end.keys.filter { |e| e }.join('-')
-    end
-
-    def c118_stamp(kda)
-      base_stamp(kda)
+    # @param kda (see #final)
+    # @return [String] texto completo do selo
+    def stamp(kda)
+      stamp_base(kda)
       return unless kda
 
-      vnum_stamp(kda)
-      numb_stamp(kda)
-      d = sfim_stamp(kda)
+      stamp_digitos(kda)
+      stamp_mb(kda)
+      d = stamp_descricao(kda)
       return if d.empty?
 
       @base += '-' + I18n.transliterate(d, locale: :pt)
                          .gsub(/[ [[:punct:]]]/, '-')
     end
 
-    def rubrica(kda)
+    # @param kda (see #final)
+    # @return [String] texto base do selo
+    def stamp_base(kda)
+      @base = id + '-' + stamp_rubrica(kda) + stamp_sha
+    end
+
+    # @param kda (see #final)
+    # @return [String] adiciona digitos do valor absoluto do documento
+    # @example kda-ft1901 (see #final)
+    def stamp_digitos(kda)
+      n = kda.inject(0) { |s, e| s + e[4].to_i }.abs
+      @base += '-' + format('%<valor>06d', valor: n)
+    end
+
+    # @param kda (see #final)
+    # @return [String] adiciona ids dos movimentos multibanco
+    # @example kda-ft1904
+    #   [["ft1904-mb00016410","material","mangueira","limpeza","-3998"],
+    #    ["ft1904-mb00095312","material","lampadas","sos","-4585"]]
+    def stamp_mb(kda)
+      d = kda.group_by { |e| e[0][/-(mb\d+)/, 1] }
+             .keys.join('-')
+      @base += '-' + d unless d.size.zero?
+    end
+
+    # @param kda (see #final)
+    # @return [String] descricoes dos movimentos contabilidade
+    # @example kda-rc1911
+    #   [[_,_,"quota 2019-Janeiro","glB albino soares","541"],
+    #    [_,_,"quota 2019-Fevereiro","glB albino soares","541"]]
+    # @example kda-ft1901 (see #final)
+    def stamp_descricao(kda)
+      if id[0] == 'f'
+        kda.group_by { |e| e[2] }
+      else
+        kda.group_by { |e| e[2][/\d{4}-(\w{3})/, 1] }
+      end.keys.filter { |e| e }.join('-')
+    end
+
+    # @param kda (see #final)
+    # @return [String] rubrica dos movimentos contabilidade
+    # @example kda-ft1901 (see #final)
+    # @example kda-rc1911 (see #stamp_descricao)
+    def stamp_rubrica(kda)
       if kda
-        # rubrica obtida da sheet arquivo
-        # isto permite fazer re-classificacoes de documentos
-        if key[0] == 'f'
+        if id[0] == 'f'
           kda.group_by { |e| e[1] }
         else
+          # rubrica recibos = id condomino (ex: h3d)
           kda.group_by { |e| e[3][/\w+/] }
         end.keys.join('-')
       else
@@ -114,30 +110,51 @@ module Arquivo
       end
     end
 
-    def digest
+    # @return [String] SHA256 do documento para arquivar
+    def stamp_sha
       '-' + `sha256sum #{file}`[/\w+/]
     end
 
-    def jpg?
-      return false if key[0] == 'r'
+    # @param [String] jpg imagem final (se existir)
+    # @return [Boolean] scanned pdf?
+    def jpg?(jpg)
+      return false if id[0] == 'r'
 
-      o = "tmp/#{key}.txt"
-      # teste scanned pdf (se contem texto -> not scanned)
+      o = "tmp/#{id}.txt"
+      # se pdf contem texto -> not scanned
       system "pdftotext -q -eol unix -nopgbrk \"#{file}\" #{o}"
-      File.size?(o) ? false : true
+      return false if File.size?(o)
+
+      system "pdfimages -q -j \"#{file}\" tmp/#{id}"
+      # utilizar somente 1 imagem, comvertida em jpg
+      system "convert #{Dir.glob("tmp/#{id}-???.???")[0]} #{jpg} #{O2}"
+
+      File.size?(jpg) > LT
     end
 
-    def extract
-      o = "tmp/#{key}-extract.jpg"
+    # cria pdf com selo no canto inferior esquerdo
+    def marca
+      # nome pdf com selo determina a ordem das paginas no arquivo final
+      o = "tmp/stamped-#{base[/-(\w+)/, 1]}-#{id}.pdf"
+      s = '2 2 moveto /Ubuntu findfont 7 scalefont ' \
+           "setfont (#{base}) show"
+      system "#{ghostscript} -sOutputFile=tmp/stamp-#{id}.pdf -c \"#{s}\";" \
+             "pdftk tmp/zip/#{base}.pdf " \
+             "stamp tmp/stamp-#{id}.pdf output #{o} #{O2}"
+    end
 
-      system "pdfimages -q -j \"#{file}\" tmp/#{key}"
-      # nem sempre as imagens sao jpg
-      # somente utilizar a primeira
-      g = Dir.glob("tmp/#{key}-???.???")
-      system "convert #{g[0]} #{o} #{O2}"
-      return unless File.size(o) > LT
+    # @return [String] comando PDF language interpreter c118
+    def ghostscript
+      # filtrar images para scq e extratos
+      fi = /^[se]/i.match?(id) ? ' -dFILTERIMAGE' : ''
 
-      C118jpg.new(o)
+      'gs -sDEVICE=pdfwrite ' \
+        '-dNOPAUSE -dBATCH -dQUIET ' \
+        '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage ' \
+        '-dPDFSETTINGS=/screen -dDetectDuplicateImages ' \
+        '-dColorImageDownsampleThreshold=1 ' \
+        '-dGrayImageDownsampleThreshold=1 ' \
+        '-dMonoImageDownsampleThreshold=1' + fi
     end
   end
 end

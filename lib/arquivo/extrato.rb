@@ -3,26 +3,60 @@
 require 'pdf-reader'
 
 module Arquivo
-  # analisar/processar pdf
+  # permite processar documentos PDF
   class C118pdf < String
-    def c118_gs
-      # filtrar images para scq e extratos
-      fi = /^[se]/i.match?(key) ? ' -dFILTERIMAGE' : ''
+    # @return [String] nome do documento
+    attr_reader :file
+    # @return [String] extensao do documento
+    attr_reader :ext
+    # @return [String] base do documento
+    attr_reader :base
+    # @return [Integer] tamanho do documento
+    attr_reader :size
+    # @return [Hash] opcoes parametrizar JPG
+    attr_reader :opcoes
+    # @return [String] id do documento ft/rc/ex/sc <numero>
+    attr_reader :id
 
-      'gs -sDEVICE=pdfwrite ' \
-        '-dNOPAUSE -dBATCH -dQUIET ' \
-        '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage ' \
-        '-dPDFSETTINGS=/screen -dDetectDuplicateImages ' \
-        '-dColorImageDownsampleThreshold=1 ' \
-        '-dGrayImageDownsampleThreshold=1 ' \
-        '-dMonoImageDownsampleThreshold=1' + fi
+    # @return [Array<Integer>] lista paginas do extrato
+    attr_reader :paginas
+    # @return [String] texto pagina
+    attr_reader :pagina
+    # @return [String] nome extrato
+    attr_reader :nome
+
+    # @param [String] pdf PDF c118
+    # @param opt (see C118jpg#initialize)
+    # @option opt (see C118jpg#initialize)
+    # @return [C118pdf] PDF c118
+    def initialize(pdf, opt)
+      @file = pdf
+      @ext = File.extname(pdf).downcase
+      @base = File.basename(pdf, File.extname(pdf))
+      @id = @base[/\w+/]
+      @size = File.size(pdf)
+      @opcoes = opt
     end
 
+    # @!group segmentacao
+    # segmenta extrato limpando publicidade
+    #
+    # @param [Integer] cnt contador pagina em processamento
+    def processa_extrato(cnt)
+      cnt += 1
+      @paginas << cnt if pagina_extrato?
+      if proxima_pagina
+        faz_extrato if novo_extrato?
+        processa_extrato(cnt)
+      else
+        faz_extrato
+      end
+    end
+
+    # @return [Boolean] posso segmentar extrato?
     def processa_extrato?
-      return true if ext == '.pdf' &&
-                     size.positive? &&
-                     !File.exist?(base) &&
-                     first_extrato?
+      return true if ext == '.pdf' && size.positive? && !File.exist?(base) &&
+                     first_pagina?
 
       if File.exist?(base)
         puts "erro: #{base} pasta ja existe"
@@ -32,35 +66,19 @@ module Arquivo
       false
     end
 
-    def processa_extrato(cnt)
-      cnt += 1
-      @paginas << cnt if conta_c118?
-      if proxima_pagina
-        faz_extrato if extrato?
-        processa_extrato(cnt)
-      else
-        faz_extrato
-      end
+    # @return [Boolean] primeira pagina de extrato?
+    def novo_extrato?
+      pagina_extrato? && pagina.match?(/extrato +combinado/i)
     end
 
-    def extrato?
-      conta_c118? && pagina.match?(/extrato +combinado/i)
-    end
-
-    def faz_extrato
-      system "#{c118_gs} " \
-        "-sOutputFile=#{base}/#{nome}-extrato.pdf " \
-        "-sPageList=#{paginas.join(',')} \"#{file}\" #{O2}"
-      puts "#{nome}-extrato"
-      proximo_extrato
-    end
-
-    def conta_c118?
+    # @return [Boolean] pagina de extrato?
+    def pagina_extrato?
       pagina.include?('45463760224')
     end
 
-    def first_extrato?
-      leitor && proxima_pagina && proximo_extrato
+    # @return [Boolean] primeira pagina?
+    def first_pagina?
+      leitor && proxima_pagina && nome_extrato
     end
 
     # @return [Enumerator::Lazy] leitor pdf
@@ -77,19 +95,31 @@ module Arquivo
       @pagina = nil
     end
 
-    def proximo_extrato
+    # @return [String] nome proximo extrato
+    def nome_extrato
       return false unless pagina
 
       @paginas = []
       n = pagina.scan(%r{N\. *(\d+)/(\d+)}).flatten
-      @nome = "ex#{n[0].to_s[/\d{2}$/]}#{n[1]}"
+      @nome = n.empty? ? nil : "ex#{n[0][/\d{2}$/]}#{n[1]}"
     rescue StandardError
       @nome = nil
     end
 
+    # cria PDF do extrato
+    def faz_extrato
+      system "#{ghostscript} " \
+        "-sOutputFile=#{base}/#{nome}-extrato.pdf " \
+        "-sPageList=#{paginas.join(',')} \"#{file}\" #{O2}"
+      puts "#{nome}-extrato"
+      nome_extrato
+    end
+
+    # segmenta PDF pelas suas paginas
     def split
       system "pdftk #{file} burst output #{base}/pg%04d-#{base}.pdf;" \
              "rm -f #{base}/*.txt"
+      puts "#{base}-split"
     end
   end
 end

@@ -1,6 +1,6 @@
 # Arquivo
 
-Processa documentos do condominio ph1341c118 para arquivo.
+Processa documentos do condominio ph1341c118 para arquivo. Pode tambem segmentar PDFs e MINUTAS. Tendo os documentos em pastas separadas, pode ainda criar arquivos apropriados.
 
 ## Installation
 
@@ -20,9 +20,9 @@ Or install it yourself as:
 
 ## Usage
 
-    $ arquivo dir PASTA       # processa faturas/recibos/extratos/minutas
-    $ arquivo pdf FILE        # processa extratos ou faturas
-    $ arquivo help [COMMAND]  # Describe available commands or one specific command
+    $ arquivo mp3 MINUTA  # processa MINUTA criando pasta com segmentos para arquivo
+    $ arquivo pdf EXTRATO # processa EXTRATO criando pasta com documentos para arquivo
+    $ arquivo dir PASTA   # processa faturas/recibos/extratos/minutas e cria arquivos c118
 
 ## Development
 
