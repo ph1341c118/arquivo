@@ -1,17 +1,29 @@
 # frozen_string_literal: true
 
 module Arquivo
+  O1 = '2>/dev/null'
+  O2 = '1>/dev/null 2>&1'
+  # tipos de audio que consigo processar
+  AT = %w[.mp3 .m4a .wav .sox].freeze
+  # tipos de documentos validos
+  # @example contem (see C118dir#obtem_conteudo)
+  DT = %i[fsc fsg frc fft fex].freeze
+
   # permite processar e arquivar pasta com documentos c118
   class C118dir < Enumerator
+    # @return [String] local da pasta
+    attr_reader :local
     # @return [Enumerator] items dentro duma pasta
     attr_reader :items
-    # @return [String] base nome ficheiros para arquivo (pdf, tar.gz)
-    attr_reader :base
+    # @return [String] nome ficheiro de arquivo
+    attr_reader :nome
     # @return [Hash] parametrizar JPG, MINUTA
     attr_reader :opcoes
+    # @return [Symbol] conteudo da pasta
+    attr_reader :contem
+
     # @return [String] documento c118
     attr_reader :item
-
     # @return (see #obtem_dados)
     attr_reader :dados
     # @return (see #obtem_noiseprof)
@@ -30,54 +42,77 @@ module Arquivo
     # @option opt [Numeric] :rate (16) sample rate - radio-16k, CD-44.1k,
     #   PC-48k, pro-96k
     # @return [C118dir] pasta de documentos c118
-    def initialize(pasta, opt)
-      @items = Dir.glob(File.join(pasta, '*')).each
-      @base = File.basename(pasta, File.extname(pasta)) + '-' +
+    def initialize(dir, opt)
+      c = Dir.glob(File.join(dir, '*'))
+      @local = dir
+      @items = c.each
+      @nome = File.basename(dir, File.extname(dir)) + '-' +
               Date.today.strftime('%Y%m%d')
       @opcoes = opt
+      @contem = obtem_conteudo(c)
+    end
+
+    # Agrupa conteudo duma pasta segundo tipos de documentos validos
+    #
+    # @param [Array] fls lista items duma pasta
+    # @return [Symbol] tipo de conteudo
+    # @example contem
+    #   :fsc scq
+    #   :fsg minutas
+    #   :frc recibos
+    #   :fft faturas
+    #   :fex extratos
+    def obtem_conteudo(fls)
+      t = fls.group_by { |f| File.ftype(f)[0] + File.basename(f)[0, 2] }.keys
+      return unless t.size == 1 && DT.include?(t[0].to_sym)
+
+      t[0].to_sym
     end
 
     # @!group perfil silencio
-    # @param pasta (see CLI#dir)
     # @return [String] perfil do maior silencio inicial de todos segmentos audio
-    def obtem_noiseprof(pasta)
-      return unless /minuta/i.match?(pasta)
+    def obtem_noiseprof
+      return unless contem == :fsg
 
-      l = obtem_segmentos(pasta)
+      l = obtem_segmentos
       return unless l.size.positive?
 
       t = -1
       m = ['', 0]
-      m = obtem_maximo_silencio(l, t += 1) while noisy?(m, t)
+      m = maximo_silencio(l, t += 1) while noisy?(m[1], t)
 
       cria_noiseprof(m)
     end
 
-    # @param [Array<String, Float>] seg segmento, duracao silencio inicial
-    # @param thr (see #obtem_maximo_silencio)
+    # @param [Float] duracao silencio
+    # @param thr (see #maximo_silencio)
     # @return [Boolean] segmento audio tem som ou silencio no inicio
-    def noisy?(seg, thr)
-      thr < opcoes[:threshold] && seg[1] <= opcoes[:sound]
+    def noisy?(sin, thr)
+      thr < opcoes[:threshold] && sin <= opcoes[:sound]
     end
 
-    # @param [Array] lsg lista segmentos audio com duracoes
+    # @param [Array] lsg lista segmentos audio com duracoes e file silencio
     # @param [Numeric] thr limiar para silencio em processamento
     # @return [Array<String, Float>] segmento com maior duracao silencio inicial
-    def obtem_maximo_silencio(lsg, thr)
-      lsg.sort.map { |e| obtem_silencio(e, thr) }.max_by { |_, s| s }
+    def maximo_silencio(lsg, thr)
+      system lsg.inject('') { |s, e| s + cmd_silencio(e, thr) }[1..-1]
+      lsg.map { |e| [e[0], duracao_silencio(e)] }.max_by { |_, s| s }
     end
 
-    # @param [Array<String, Float>] seg segmento audio, duracao
-    # @param thr (see #obtem_maximo_silencio)
-    # @return [Array<String, Float>] segmento audio, duracao silencio inicial
-    def obtem_silencio(seg, thr)
-      o = "tmp/thr-#{File.basename(seg[0])}"
-      system "sox #{seg[0]} #{o} silence 1 #{opcoes[:sound]}t #{thr}% #{O2}"
-
-      [seg[0], (seg[1] - duracao(o)).round(2, half: :down)]
+    # @param [Array<String, Float, String>] seg segmento, duracao, file silencio
+    # @param thr (see #maximo_silencio)
+    # @return [String] comando para cortar silencio inicial sum segmento
+    def cmd_silencio(seg, thr)
+      ";sox #{seg[0]} #{seg[2]} silence 1 #{opcoes[:sound]}t #{thr}% #{O2}"
     end
 
-    # @param seg (see #noisy?)
+    # @param seg (see #cmd_silencio)
+    # @return [Float] duracao silencio em segundos
+    def duracao_silencio(seg)
+      (seg[1] - duracao(seg[2])).round(2, half: :down)
+    end
+
+    # @param [Array<String, Float>] seg segmento, duracao silencio inicial
     # @return [String] perfil sonoro do silencio inicial dum segmento
     def cria_noiseprof(seg)
       return unless seg[1] > opcoes[:sound]
@@ -90,11 +125,10 @@ module Arquivo
       @noiseprof = File.size?(o).positive? ? o : nil
     end
 
-    # @param pasta (see CLI#dir)
-    # @return [Array] lista segmentos audio com duracoes
-    def obtem_segmentos(pasta)
-      AT.map { |e| Dir.glob(File.join(pasta, 's[0-9][0-9]-*' + e)) }.flatten
-        .map { |s| [s, duracao(s)] }
+    # @return [Array] lista segmentos audio com duracoes e file silencio
+    def obtem_segmentos
+      AT.map { |e| Dir.glob(File.join(local, 'sg*' + e)) }.flatten
+        .map { |s| [s, duracao(s), "tmp/thr-#{File.basename(s)}"] }
     end
 
     # @param [String] audio ficheiro de audio

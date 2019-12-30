@@ -60,7 +60,7 @@ module Arquivo
     # @param [Integer] pse numero do segmento em processamento
     # @return [String] nome do segmento
     def nome_segmento(pse)
-      "s#{format('%<v>02d', v: pse)}-#{base[/\d{8}/]}#{base[/-\w+/]}"
+      "sg#{format('%<v>02d', v: pse)}-#{base[/\d{8}/]}#{base[/-\w+/]}"
     end
 
     # @param tempos (see #segmenta_minuta)

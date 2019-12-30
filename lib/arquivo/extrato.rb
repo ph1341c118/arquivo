@@ -101,7 +101,7 @@ module Arquivo
 
       @paginas = []
       n = pagina.scan(%r{N\. *(\d+)/(\d+)}).flatten
-      @nome = n.empty? ? nil : "ex#{n[0][/\d{2}$/]}#{n[1]}"
+      @nome = n.empty? ? nil : "ex#{n[1]}-#{n[0]}"
     rescue StandardError
       @nome = nil
     end

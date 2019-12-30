@@ -121,7 +121,7 @@ module Arquivo
       return false if id[0] == 'r'
 
       o = "tmp/#{id}.txt"
-      # se pdf contem texto -> not scanned
+      # se pdf contem texto -> not scanned pdf
       system "pdftotext -q -eol unix -nopgbrk \"#{file}\" #{o}"
       return false if File.size?(o)
 
@@ -129,6 +129,7 @@ module Arquivo
       # utilizar somente 1 imagem, comvertida em jpg
       system "convert #{Dir.glob("tmp/#{id}-???.???")[0]} #{jpg} #{O2}"
 
+      # jpg demasiado pequeno -> not scanned pdf
       File.size?(jpg) > LT
     end
 

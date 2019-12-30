@@ -3,7 +3,7 @@
 require 'fastimage'
 
 module Arquivo
-  # size limit after trim attempt
+  # tipos de audio que consigo processa
   LT = 9000
 
   # A4 page (8.27x11.69) inches
@@ -54,18 +54,28 @@ module Arquivo
       apara.pdf.final(dad[id]).marca
     end
 
-    # @return [C118jpg] jpg com melhor aparado
+    # @return [C118jpg] jpg com melhor aparo
     def apara
-      f = opcoes[:fuzz]
-      h = {}
-      # aparar borders ao maximo
-      while f >= 1
-        o = "tmp/#{id}-#{f}.jpg"
-        h[o] = size_aparado(f, o)
-        f -= 4
-      end
-      m = h.min_by { |_, v| v }
-      m[1].between?(LT, size) ? C118jpg.new(m[0], opcoes) : self
+      system cmd_apara(opcoes[:fuzz], '')
+      melhor_aparo
+    end
+
+    # @return (see #apara)
+    def melhor_aparo
+      m = Dir.glob("tmp/#{id}-*.jpg")
+             .map { |s| [s, File.size(s)] }
+             .min_by { |_, v| v.between?(LT, size) ? v : size }
+      m[1] < size ? C118jpg.new(m[0], opcoes) : self
+    end
+
+    # @return [String] comando para aparar imagem
+    def cmd_apara(fuzz, cmd)
+      return cmd[1..-1] unless fuzz >= 1
+
+      cmd += ";convert \"#{file}\" -fuzz #{fuzz}% -trim +repage " \
+             "#{oqualidade} tmp/#{id}-#{fuzz}.jpg #{O2}"
+
+      cmd_apara(fuzz - 4, cmd)
     end
 
     # @return [C118pdf] pdf com jpg processada dentro
@@ -74,15 +84,6 @@ module Arquivo
              "-format pdf tmp/#{id}-trimed.pdf #{O2}"
 
       C118pdf.new("tmp/#{id}-trimed.pdf", opcoes)
-    end
-
-    # @param [Numeric] fuzz fuzziness actual em processamento
-    # @param [String] out jpg aparada
-    # @return [Numeric] tamanho da jpg aparada
-    def size_aparado(fuzz, out)
-      system "convert \"#{file}\" -fuzz #{fuzz}% -trim +repage " \
-             "#{oqualidade} #{out} #{O2}"
-      File.size(out)
     end
 
     # @return [String] opcoes comprimir jpg

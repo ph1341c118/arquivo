@@ -7,21 +7,15 @@ require 'googleauth/stores/file_token_store'
 require 'arquivo/noise'
 
 module Arquivo
-  # O1 = '2>/dev/null'
-  # O2 = '1>/dev/null 2>&1'
-  O1 = ''
-  O2 = ''
-  AT = ['.mp3', '.m4a', '.wav', '.sox'].freeze
-
   # permite processar e arquivar pasta com documentos c118
   class C118dir < Enumerator
     # @!group processamento
-    # processa items duma pasta - sub-pastas recursivamente
+    # processa items duma pasta
     def processa_items
       n = 0
       while next_item
         if File.ftype(item) == 'directory'
-          C118dir.new(item, opcoes).processa_pasta(item)
+          C118dir.new(item, opcoes).processa_pasta
         else
           processa_file(File.extname(item).downcase)
           n += 1
@@ -36,16 +30,16 @@ module Arquivo
     def processa_fim(num)
       return unless num.positive?
 
-      cmd = if /minuta/i.match?(base)
-              "rm -f #{base}.*"
+      cmd = if contem == :fsg
+              "rm -f #{nome}.*;sox tmp/zip/* #{nome}.mp3"
             else
-              "rm -f #{base}.*;pdftk tmp/stamped*.pdf cat output #{base}.pdf"
+              "rm -f #{nome}.*;pdftk tmp/stamped* cat output #{nome}.pdf"
             end
-      system cmd + ";cd tmp/zip;tar cf ../../#{base}.tar *" \
-                   ";cd ../..;gzip --best #{base}.tar" \
-                   '' # ';rm -rf tmp'
+      system cmd + ";cd tmp/zip;tar cf ../../#{nome}.tar *" \
+                   ";cd ../..;gzip --best #{nome}.tar" \
+                   ';rm -rf tmp'
 
-      puts "#{base} (#{num})"
+      puts "#{nome} (#{num})"
     end
 
     # processa ficheiro JPG, PDF ou AUDIO
@@ -63,13 +57,11 @@ module Arquivo
     end
 
     # processa conteudo duma pasta
-    #
-    # @param pasta (see CLI#dir)
-    def processa_pasta(pasta)
-      unless File.ftype(items.peek) == 'directory'
+    def processa_pasta
+      if contem
         system 'mkdir -p tmp/zip'
-        obtem_dados(pasta)
-        obtem_noiseprof(pasta)
+        obtem_dados
+        obtem_noiseprof
       end
       processa_items
     end
@@ -82,19 +74,16 @@ module Arquivo
     end
 
     # @!group dados online
-    # @param pasta (see CLI#dir)
     # @return [Hash] dados oficiais para reclassificacao de faturas e recibos
-    def obtem_dados(pasta)
+    def obtem_dados
       @dados = {}
       # somente faturas e recibos necessitam reclassificacao
-      return unless /fac?tura/i.match?(pasta) || /recibo/i.match?(pasta)
+      return unless %i[fft frc].include?(contem)
 
       # sheet c118-contas
       dg = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
-      # range dos dados (faturas/recibos)
-      sh = (/fac?tura/i.match?(pasta) ? 'rft' : 'rrc') + '!A2:E'
-      @dados = c118_sheets.get_spreadsheet_values(dg, sh).values
-                          .group_by { |k| k[0][/\w+/] }
+      @dados = c118_sheets.get_spreadsheet_values(dg, contem.to_s + '!A2:E')
+                          .values.group_by { |k| k[0][/\w+/] }
     rescue StandardError
       @dados = {}
     end

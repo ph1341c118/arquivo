@@ -76,7 +76,7 @@ module Arquivo
     def dir(pasta)
       return unless File.ftype(pasta) == 'directory'
 
-      C118dir.new(pasta, options).processa_pasta(pasta)
+      C118dir.new(pasta, options).processa_pasta
     end
   end
 end
