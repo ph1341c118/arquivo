@@ -84,7 +84,7 @@ module Arquivo
       cria_noiseprof(m)
     end
 
-    # @param [Float] duracao silencio
+    # @param [Float] sin duracao silencio
     # @param thr (see #maximo_silencio)
     # @return [Boolean] segmento audio tem som ou silencio no inicio
     def noisy?(sin, thr)

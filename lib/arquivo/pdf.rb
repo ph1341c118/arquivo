@@ -143,19 +143,5 @@ module Arquivo
              "pdftk tmp/zip/#{base}.pdf " \
              "stamp tmp/stamp-#{id}.pdf output #{o} #{O2}"
     end
-
-    # @return [String] comando PDF language interpreter c118
-    def ghostscript
-      # filtrar images para scq e extratos
-      fi = /^[se]/i.match?(id) ? ' -dFILTERIMAGE' : ''
-
-      'gs -sDEVICE=pdfwrite ' \
-        '-dNOPAUSE -dBATCH -dQUIET ' \
-        '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage ' \
-        '-dPDFSETTINGS=/screen -dDetectDuplicateImages ' \
-        '-dColorImageDownsampleThreshold=1 ' \
-        '-dGrayImageDownsampleThreshold=1 ' \
-        '-dMonoImageDownsampleThreshold=1' + fi
-    end
   end
 end

@@ -106,6 +106,20 @@ module Arquivo
       @nome = nil
     end
 
+    # @return [String] comando PDF language interpreter c118
+    def ghostscript
+      # filtrar images para scq e extratos
+      fi = /^[se]/i.match?(id) ? ' -dFILTERIMAGE' : ''
+
+      'gs -sDEVICE=pdfwrite ' \
+        '-dNOPAUSE -dBATCH -dQUIET ' \
+        '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage ' \
+        '-dPDFSETTINGS=/screen -dDetectDuplicateImages ' \
+        '-dColorImageDownsampleThreshold=1 ' \
+        '-dGrayImageDownsampleThreshold=1 ' \
+        '-dMonoImageDownsampleThreshold=1' + fi
+    end
+
     # cria PDF do extrato
     def faz_extrato
       system "#{ghostscript} " \
@@ -113,6 +127,15 @@ module Arquivo
         "-sPageList=#{paginas.join(',')} \"#{file}\" #{O2}"
       puts "#{nome}-extrato"
       nome_extrato
+    end
+
+    # cria PDF do dashboard
+    def faz_dashboard
+      c = 'gs -sDEVICE=pdfwrite ' \
+          '-dNOPAUSE -dBATCH -dQUIET -dPDFSETTINGS=/printer ' \
+          '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage -dAutoRotatePages=/All'
+      system "#{c} -sOutputFile=#{base}-a4.pdf \"#{file}\" #{O2}"
+      puts "#{base}-a4"
     end
 
     # segmenta PDF pelas suas paginas

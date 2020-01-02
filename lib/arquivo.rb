@@ -54,6 +54,16 @@ module Arquivo
       end
     end
 
+    desc 'dsh DASHBOARD', 'processa DASHBOARD criando pdf c118'
+    # cria DASHBOARD c118
+    #
+    # @param [String] dashboard pdf a processar
+    def dsh(dashboard)
+      return unless File.exist?(dashboard) && File.ftype(dashboard) == 'file'
+
+      C118pdf.new(dashboard, options).faz_dashboard
+    end
+
     desc 'dir PASTA', 'processa faturas/recibos/extratos/minutas ' \
                       'e cria arquivos c118'
     option :fuzz, type: :numeric, default: 29,
