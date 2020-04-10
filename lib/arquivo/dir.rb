@@ -3,6 +3,7 @@
 require 'google/apis/sheets_v4'
 require 'googleauth'
 require 'googleauth/stores/file_token_store'
+require 'google/cloud/bigquery'
 
 require 'arquivo/noise'
 
@@ -66,6 +67,18 @@ module Arquivo
       processa_items
     end
 
+    def processa_big
+      puts contem
+      # This uses Application Default Credentials to authenticate.
+      # @see https://cloud.google.com/bigquery/docs/authentication/getting-started
+      bigquery = Google::Cloud::Bigquery.new
+
+      r = bigquery.query 'select * from arquivo.bal order by 1 desc limit 10'
+      r.each do |row|
+        puts "#{row[:data]}: #{row[:documento]}"
+      end
+    end
+
     # @return [String] proximo item dentro da pasta
     def next_item
       @item = items.next
@@ -92,12 +105,12 @@ module Arquivo
     #
     # @return [Google::Apis::SheetsV4::SheetsService] c118 sheets_v4
     def c118_sheets
-      p = '/home/c118/c118-'
+      p = '/home/c118/.'
       # file obtido console.cloud.google.com/apis OAuth 2.0 client IDs
-      i = Google::Auth::ClientId.from_file("#{p}credentials.json")
+      i = Google::Auth::ClientId.from_file("#{p}sheets.json")
       s = Google::Apis::SheetsV4::AUTH_SPREADSHEETS_READONLY
       # file criado aquando new_credentials is executed
-      f = Google::Auth::Stores::FileTokenStore.new(file: "#{p}token.yaml")
+      f = Google::Auth::Stores::FileTokenStore.new(file: "#{p}sheets.yaml")
       z = Google::Auth::UserAuthorizer.new(i, s, f)
 
       sheets = Google::Apis::SheetsV4::SheetsService.new

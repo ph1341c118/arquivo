@@ -64,6 +64,12 @@ module Arquivo
       C118pdf.new(dashboard, options).faz_dashboard
     end
 
+    desc 'big', 'processa dados bigquery c118'
+    # processa bigquery c118
+    def big
+      C118dir.new('.', options).processa_big
+    end
+
     desc 'dir PASTA', 'processa faturas/recibos/extratos/minutas ' \
                       'e cria arquivos c118'
     option :fuzz, type: :numeric, default: 29,
