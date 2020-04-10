@@ -71,16 +71,17 @@ module Arquivo
       # sheet c118-contas
       dg = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
       ano = c118_sheets.get_spreadsheet_values(dg, 'cdb!AJ2').values
-      # ins = c118_sheets.get_spreadsheet_values(dg, 'bal!R:R').values
+      ins = c118_sheets.get_spreadsheet_values(dg, 'cbd!AJ:AJ').values
       puts ano
+      puts ins
 
       # This uses Application Default Credentials to authenticate.
       # @see https://cloud.google.com/bigquery/docs/authentication/getting-started
-      bigquery = Google::Cloud::Bigquery.new
-      r = bigquery.query 'select * from arquivo.bal order by 1 desc limit 10'
-      r.each do |row|
-        puts "#{row[:data]}: #{row[:documento]}"
-      end
+      # bigquery = Google::Cloud::Bigquery.new
+      # r = bigquery.query 'select * from arquivo.bal order by 1 desc limit 10'
+      # r.each do |row|
+      #   puts "#{row[:data]}: #{row[:documento]}"
+      # end
     end
 
     # @return [String] proximo item dentro da pasta
