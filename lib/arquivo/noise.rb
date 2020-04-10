@@ -44,15 +44,12 @@ module Arquivo
     # @return [C118dir] pasta de documentos c118
     def initialize(dir, opt)
       c = Dir.glob(File.join(dir, '*'))
-      puts c
       @local = dir
-      puts @local
       @items = c.each
       @nome = File.basename(dir, File.extname(dir)) + '-' +
               Date.today.strftime('%Y%m%d')
       @opcoes = opt
       @contem = obtem_conteudo(c)
-      puts @contem
     end
 
     # Agrupa conteudo duma pasta segundo tipos de documentos validos

@@ -67,7 +67,7 @@ module Arquivo
     desc 'big', 'processa dados bigquery c118'
     # processa bigquery c118
     def big
-      C118dir.new('.', options).processa_big
+      C118dir.new('/home/c118', options).processa_big
     end
 
     desc 'dir PASTA', 'processa faturas/recibos/extratos/minutas ' \
