@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require 'google/apis/sheets_v4'
-require 'googleauth'
-require 'googleauth/stores/file_token_store'
-require 'google/cloud/bigquery'
-
 require 'arquivo/noise'
 
 module Arquivo
@@ -67,23 +62,6 @@ module Arquivo
       processa_items
     end
 
-    def processa_big
-      # sheet c118-contas
-      dg = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
-      ano = c118_sheets.get_spreadsheet_values(dg, 'cdb!AJ2').values
-      ins = c118_sheets.get_spreadsheet_values(dg, 'cbd!AJ:AJ').values
-      puts ano
-      puts ins
-
-      # This uses Application Default Credentials to authenticate.
-      # @see https://cloud.google.com/bigquery/docs/authentication/getting-started
-      # bigquery = Google::Cloud::Bigquery.new
-      # r = bigquery.query 'select * from arquivo.bal order by 1 desc limit 10'
-      # r.each do |row|
-      #   puts "#{row[:data]}: #{row[:documento]}"
-      # end
-    end
-
     # @return [String] proximo item dentro da pasta
     def next_item
       @item = items.next
@@ -91,49 +69,20 @@ module Arquivo
       @item = nil
     end
 
-    # @!group dados online
-    # @return [Hash] dados oficiais para reclassificacao de faturas e recibos
+    # @!group dados folhas-calculo c118
+    # @return [Hash] dados oficiais para classificacao de faturas e recibos
     def obtem_dados
       @dados = {}
       # somente faturas e recibos necessitam reclassificacao
       return unless %i[fft frc].include?(contem)
 
-      # sheet c118-contas
-      dg = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
-      @dados = c118_sheets.get_spreadsheet_values(dg, contem.to_s + '!A2:E')
-                          .values.group_by { |k| k[0][/\w+/] }
+      # folha c118-contas
+      s = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
+      @dados = C118sheets.new.folhas
+                         .get_spreadsheet_values(s, contem.to_s + '!A2:E')
+                         .values.group_by { |k| k[0][/\w+/] }
     rescue StandardError
       @dados = {}
-    end
-
-    # assegura credenciais validas, obtidas dum ficheiro de credencias
-    #
-    # @return [Google::Apis::SheetsV4::SheetsService] c118 sheets_v4
-    def c118_sheets
-      p = '/home/c118/.'
-      # file obtido console.cloud.google.com/apis OAuth 2.0 client IDs
-      i = Google::Auth::ClientId.from_file("#{p}sheets.json")
-      s = Google::Apis::SheetsV4::AUTH_SPREADSHEETS_READONLY
-      # file criado aquando new_credentials is executed
-      f = Google::Auth::Stores::FileTokenStore.new(file: "#{p}sheets.yaml")
-      z = Google::Auth::UserAuthorizer.new(i, s, f)
-
-      sheets = Google::Apis::SheetsV4::SheetsService.new
-      sheets.client_options.application_name = 'c118-arquivo'
-      sheets.authorization = z.get_credentials('default') ||
-                             new_credentials(z, 'urn:ietf:wg:oauth:2.0:oob')
-      sheets
-    end
-
-    # inicializar OAuth2 authorization abrindo URL e copiando novo codigo
-    #
-    # @return [Google::Auth::UserAuthorizer] OAuth2 credentials
-    def new_credentials(aut, oob)
-      puts 'Open URL and copy code after authorization, in <codigo-aqui>',
-           aut.get_authorization_url(base_url: oob)
-      aut.get_and_store_credentials_from_code(user_id: 'default',
-                                              code: '<codigo-aqui>',
-                                              base_url: oob)
     end
   end
 end

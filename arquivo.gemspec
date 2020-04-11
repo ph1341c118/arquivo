@@ -39,6 +39,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'fastimage', '~> 2.1'
   spec.add_dependency 'google-api-client', '~> 0.34'
   spec.add_dependency 'google-cloud-bigquery'
+  spec.add_dependency 'i18n'
   spec.add_dependency 'pdf-reader', '~> 2.3'
   spec.add_dependency 'thor', '~> 0.1'
   spec.add_dependency 'yard', '~> 0.9'

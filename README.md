@@ -1,6 +1,6 @@
 # Arquivo
 
-Processa documentos do condominio ph1341c118 para arquivo. Pode tambem segmentar PDFs e MINUTAS. Tendo os documentos em pastas separadas, pode ainda criar arquivos apropriados.
+Processa documentos do condominio ph1341c118 para arquivo. Pode tambem segmentar PDFs e MINUTAS. Tendo os documentos em pastas separadas, pode ainda criar arquivos apropriados. Parmite ainda processar dados do condominio ph1341c118 no bigquery para arquivo historico.
 
 ## Installation
 
