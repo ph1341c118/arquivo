@@ -7,7 +7,7 @@ I18n.config.available_locales = :pt
 
 module Arquivo
   # permite processar documentos PDF
-  class C118pdf < String
+  class C118pdf
     # @!group processamento
     # processa pdf para arquivo
     #
@@ -142,6 +142,21 @@ module Arquivo
       system "#{ghostscript} -sOutputFile=tmp/stamp-#{id}.pdf -c \"#{s}\";" \
              "pdftk tmp/zip/#{base}.pdf " \
              "stamp tmp/stamp-#{id}.pdf output #{o} #{O2}"
+    end
+
+    # cria PDF do dashboard
+    def faz_dashboard
+      c = 'gs -sDEVICE=pdfwrite ' \
+          '-dNOPAUSE -dBATCH -dQUIET -dPDFSETTINGS=/printer ' \
+          '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage -dAutoRotatePages=/All'
+      system "#{c} -sOutputFile=#{base}-a4.pdf \"#{file}\" #{O2}"
+      puts "#{base}-a4"
+    end
+
+    # segmenta PDF pelas suas paginas
+    def split
+      system "pdftk #{file} burst output #{base}/pg%04d-#{base}.pdf;rm -f #{base}/*.txt"
+      puts "#{base}-split"
     end
   end
 end

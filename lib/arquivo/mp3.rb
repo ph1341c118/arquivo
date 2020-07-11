@@ -17,8 +17,7 @@ module Arquivo
     # @param [String] mp3 MP3 c118
     # @param [Hash] opt parametrizar MINUTA
     # @option opt [Numeric] :amount (0.00001) qtd ruido a ser removido,
-    # @option opt [Numeric] :rate (16) sample rate - radio-16k, CD-44.1k,
-    #   PC-48k, pro-96k
+    # @option opt [Numeric] :rate (16) sample rate - radio-16k, CD-44.1k, PC-48k, pro-96k
     # @return [C118mp3] MP3 c118
     def initialize(mp3, opt)
       @file = mp3

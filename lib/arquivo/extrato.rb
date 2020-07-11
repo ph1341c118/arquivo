@@ -4,7 +4,7 @@ require 'pdf-reader'
 
 module Arquivo
   # permite processar documentos PDF
-  class C118pdf < String
+  class C118pdf
     # @return [String] nome do documento
     attr_reader :file
     # @return [String] extensao do documento
@@ -127,22 +127,6 @@ module Arquivo
         "-sPageList=#{paginas.join(',')} \"#{file}\" #{O2}"
       puts "#{nome}-extrato"
       nome_extrato
-    end
-
-    # cria PDF do dashboard
-    def faz_dashboard
-      c = 'gs -sDEVICE=pdfwrite ' \
-          '-dNOPAUSE -dBATCH -dQUIET -dPDFSETTINGS=/printer ' \
-          '-sPAPERSIZE=a4 -dFIXEDMEDIA -dPDFFitPage -dAutoRotatePages=/All'
-      system "#{c} -sOutputFile=#{base}-a4.pdf \"#{file}\" #{O2}"
-      puts "#{base}-a4"
-    end
-
-    # segmenta PDF pelas suas paginas
-    def split
-      system "pdftk #{file} burst output #{base}/pg%04d-#{base}.pdf;" \
-             "rm -f #{base}/*.txt"
-      puts "#{base}-split"
     end
   end
 end

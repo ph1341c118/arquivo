@@ -31,16 +31,12 @@ module Arquivo
 
     # @param pasta (see CLI#dir)
     # @param [Hash] opt parametrizar JPG, MINUTA
-    # @option opt [Numeric] :fuzz (29) trim jpg N-1, escolhe menor ->
-    #   scanned pdf
-    # @option opt [Numeric] :quality (15) compress jpg N% -> scanned pdf
-    #   (less=low quality)
-    # @option opt [Numeric] :threshold (9) limiar maximo para silencio,
-    #   0% = silencio puro
+    # @option opt [Numeric] :fuzz (29) trim jpg N-1, escolhe menor -> scanned pdf
+    # @option opt [Numeric] :quality (15) compress jpg N% -> scanned pdf (less=low quality)
+    # @option opt [Numeric] :threshold (9) limiar maximo para silencio, 0% = silencio puro
     # @option opt [Numeric] :sound (1) segundos de som para terminar silencio
     # @option opt [Numeric] :amount (0.00001) qtd ruido a ser removido,
-    # @option opt [Numeric] :rate (16) sample rate - radio-16k, CD-44.1k,
-    #   PC-48k, pro-96k
+    # @option opt [Numeric] :rate (16) sample rate - radio-16k, CD-44.1k, PC-48k, pro-96k
     # @return [C118dir] pasta de documentos c118
     def initialize(dir, opt)
       c = Dir.glob(File.join(dir, '*'))

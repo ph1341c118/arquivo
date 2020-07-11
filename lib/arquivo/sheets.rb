@@ -28,19 +28,15 @@ module Arquivo
       z = Google::Auth::UserAuthorizer.new(i, s, f)
       @folhas = Google::Apis::SheetsV4::SheetsService.new
       @folhas.client_options.application_name = 'c118-arquivo'
-      @folhas.authorization = z.get_credentials('default') ||
-                              new_credentials(z, 'urn:ietf:wg:oauth:2.0:oob')
+      @folhas.authorization = z.get_credentials('default') || new_credentials(z, 'urn:ietf:wg:oauth:2.0:oob')
     end
 
     # inicializar OAuth2 authorization abrindo URL e copiando novo codigo
     #
     # @return [Google::Auth::UserAuthorizer] OAuth2 credentials
     def new_credentials(aut, oob)
-      puts 'Open URL and copy code after authorization, in <codigo-aqui>',
-           aut.get_authorization_url(base_url: oob)
-      aut.get_and_store_credentials_from_code(user_id: 'default',
-                                              code: '<codigo-aqui>',
-                                              base_url: oob)
+      puts 'Open URL and copy code after authorization, in <codigo-aqui>', aut.get_authorization_url(base_url: oob)
+      aut.get_and_store_credentials_from_code(user_id: 'default', code: '<codigo-aqui>', base_url: oob)
     end
   end
 end

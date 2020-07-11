@@ -22,26 +22,33 @@ module Arquivo
     def processa_big
       # folha c118-contas
       s = '1PbiMrtTtqGztZMhe3AiJbDS6NQE9o3hXebnQEFdt954'
-      a = folhas.get_spreadsheet_values(s, 'cbd!AJ2')
-                .values.flatten[0]
-      i = folhas.get_spreadsheet_values(s, 'bal!R2:R')
-                .values.flatten.join(',')
-      puts 'processamento bigquery feito para ano ' + a +
-           ": [del_bal,del_hise,ins_bal,ins_hise] #{sql_big(a, i)}"
+      a = folhas.get_spreadsheet_values(s, 'cbd!AJ2').values.flatten[0]
+      i = folhas.get_spreadsheet_values(s, 'bal!R2:R').values.flatten.join(',')
+      puts 'processamento bigquery feito para ano ' + a + ": [del_bal,del_hise,ins_bal,ins_hise] #{sql_big(a, i)}"
     end
 
-    # executa comandos DML (Data Manipulation Language) no bigquery
+    # executa comandos DML para processa no bigquery
     #
     # @return [Array<Integer>] numero linhas afetadas pelos DMLs
     def sql_big(ano, lst)
       [dml('delete FROM arquivo.bal  WHERE ano=' + ano),
        dml('delete FROM arquivo.hise WHERE ano=' + ano),
-       dml('INSERT arquivo.bal (data,entidade,documento,descricao,valor,tag,' \
-           'dr,banco,conta,ano,id4,dref,daa,paga,desb) VALUES' + lst),
-       dml('INSERT arquivo.hise(ano,dr,tag,descricao,valor) ' \
-           'select * from arquivo.vhe where ano=' + ano)]
+       dml("INSERT arquivo.bal (#{col_bal}) VALUES" + lst),
+       dml("INSERT arquivo.hise(#{col_hise}) select * from arquivo.vhe where ano=" + ano)]
     end
 
+    # @return [String] colunas da tabela bal no bigquery
+    def col_bal
+      'data,entidade,documento,descricao,valor,tag,dr,banco,conta,ano,id4,dref,daa,paga,desb'
+    end
+
+    # @return [String] colunas da tabela hise no bigquery
+    def col_hise
+      'ano,dr,tag,descricao,valor'
+    end
+
+    # executa comando DML (Data Manipulation Language) no bigquery
+    #
     # @return [Integer] numero linhas afetadas pelo DML
     def dml(sql)
       job = big.query_job(sql)
