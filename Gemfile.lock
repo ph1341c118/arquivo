@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    arquivo (0.3.1)
+    arquivo (0.3.2)
       fastimage
       google-api-client
       google-cloud-bigquery
