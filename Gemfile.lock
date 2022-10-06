@@ -20,8 +20,8 @@ GEM
       minitest (>= 5.1)
       tzinfo (~> 2.0)
       zeitwerk (~> 2.3)
-    addressable (2.7.0)
-      public_suffix (>= 2.0.2, < 5.0)
+    addressable (2.8.1)
+      public_suffix (>= 2.0.2, < 6.0)
     afm (0.2.2)
     concurrent-ruby (1.1.9)
     declarative (0.0.20)
@@ -99,7 +99,7 @@ GEM
       hashery (~> 2.0)
       ruby-rc4
       ttfunk
-    public_suffix (4.0.6)
+    public_suffix (5.0.0)
     rake (13.0.3)
     representable (3.1.1)
       declarative (< 0.1.0)
